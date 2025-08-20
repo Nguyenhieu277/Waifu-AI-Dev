@@ -2,6 +2,7 @@
 import { useEffect, useState, memo } from 'react';
 import dynamic from 'next/dynamic';
 import ChatInput from "./ChatInput";
+import SimpleWatermark from "./SimpleWatermark";
 
 const Box = dynamic(() => import("./ChatterBox"), {ssr: false});
 const Model = dynamic(() => import("./Model"), {ssr: false});
@@ -65,10 +66,13 @@ const Widget: React.FC<WidgetProps> = memo(({
   return (
     <div className={containerClass}>
       {showBackground && (
-        <div 
-          className="absolute inset-0 z-0 overflow-hidden bg-cover bg-center opacity-30" 
-          style={{backgroundImage:'url(/one.avif)'}}
-        />
+        <>
+          <div 
+            className="absolute inset-0 z-0 overflow-hidden bg-cover bg-center opacity-30" 
+            style={{backgroundImage:'url(/one.avif)'}}
+          />
+          <SimpleWatermark size={size}/>
+        </>
       )}
       <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
         <ChatInput/>

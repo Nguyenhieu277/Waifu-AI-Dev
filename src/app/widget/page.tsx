@@ -2,6 +2,7 @@
 import { useEffect, useState, memo, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import ChatInput from "~/components/ChatInput";
+import SimpleWatermark from "~/components/SimpleWatermark";
 import { useSearchParams } from 'next/navigation';
 
 const Box = dynamic(() => import("~/components/ChatterBox"), {ssr: false});
@@ -75,10 +76,13 @@ function WidgetContent() {
   return (
     <div className={containerClass}>
       {config.showBackground && (
-        <div 
-          className="absolute inset-0 z-0 overflow-hidden bg-cover bg-center opacity-30" 
-          style={{backgroundImage:'url(/one.avif)'}}
-        />
+        <>
+          <div 
+            className="absolute inset-0 z-0 overflow-hidden bg-cover bg-center opacity-30" 
+            style={{backgroundImage:'url(/one.avif)'}}
+          />
+          <SimpleWatermark size={config.size === 'small' ? 'small' : config.size === 'large' ? 'large' : 'medium'}/>
+        </>
       )}
       <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
         <ChatInput/>

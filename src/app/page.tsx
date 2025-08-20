@@ -2,10 +2,13 @@
 import { useEffect, useState, memo } from 'react';
 import dynamic from 'next/dynamic';
 import ChatInput from "~/components/ChatInput";
+import SimpleWatermark from "~/components/SimpleWatermark";
 
 const Bg = memo(() => (
   <div className="absolute inset-0 z-0 overflow-hidden bg-cover bg-center" style={{backgroundImage:'url(/one.avif)'}}/>
 ));
+
+
 
 const Box = dynamic(() => import("~/components/ChatterBox"), {ssr: false});
 const Model = dynamic(() => import("~/components/Model"), {ssr: false});
@@ -34,6 +37,7 @@ export default function Page() {
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden">
       <Bg/>
+      <SimpleWatermark size="large"/>
       <div className="relative z-10 flex flex-col items-center justify-center w-full h-full slideUp">
         <ChatInput/>
         <div className="h-screen flex justify-center items-center w-full">
