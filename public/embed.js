@@ -7,7 +7,8 @@
     size: 'medium', 
     position: 'bottom-right',
     showBackground: true,
-    domain: window.location.hostname
+    domain: window.location.hostname,
+    baseUrl: 'http://localhost:3000'
   };
 
   // Waifu AI Widget Class
