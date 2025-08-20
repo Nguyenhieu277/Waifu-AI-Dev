@@ -54,7 +54,7 @@ export default function DemoPage() {
       showBackground: config.showBackground.toString()
     });
     
-    const sizeStyles = {
+    const sizeStyles: Record<string, string> = {
       small: 'width="320" height="400"',
       medium: 'width="384" height="500"', 
       large: 'width="500" height="600"'
@@ -62,7 +62,7 @@ export default function DemoPage() {
 
     return `<!-- Direct Iframe Embed -->
 <iframe src="${origin}/widget?${params.toString()}"
-        ${sizeStyles[config.size]}
+        ${sizeStyles[config.size] || sizeStyles.medium}
         frameborder="0"
         allow="microphone"
         style="border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">

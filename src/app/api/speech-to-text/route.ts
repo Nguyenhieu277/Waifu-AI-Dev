@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     });
 
     return Response.json({ 
-      text: result.transcription || result.text || '',
+      text: (result as any).text || (result as any).transcription || '',
       success: true 
     });
 
