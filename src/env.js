@@ -6,6 +6,7 @@ export const env = createEnv({
     NODE_ENV: z.enum(["development", "test", "production"]),
     ELEVENLABS_API_KEY: z.string(),
     VOICE_ID: z.string(),
+    GEMINI_API_KEY: z.string(),
   },
 
   client: {
@@ -16,6 +17,7 @@ export const env = createEnv({
     NODE_ENV: process.env.NODE_ENV,
     ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY, 
     VOICE_ID: process.env.VOICE_ID,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },
 

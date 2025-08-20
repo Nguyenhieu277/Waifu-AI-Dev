@@ -8,7 +8,7 @@
 - Live2d Lip sync
 - Smoother Live2D movements
 
-![Alt text](/demo.png)
+
 
 ### Requirements (same with the original repo) 
 * node

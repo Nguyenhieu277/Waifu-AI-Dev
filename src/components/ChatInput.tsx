@@ -1,19 +1,14 @@
 "use client";
 
-import type { CoreMessage } from "ai";
+import type { CoreMessage } from "~/types/chat";
 import { useAtom } from "jotai";
 import { useEffect, useRef, useState, useCallback, useDeferredValue } from "react";
 import { IoSend } from "react-icons/io5";
-import { FaMicrophone, FaMicrophoneSlash } from "react-icons/fa";
+import { FaMicrophone, FaMicrophoneSlash, FaSpinner } from "react-icons/fa";
 import { isLoadingAtom, lastMessageAtom, messageHistoryAtom } from "~/atoms/ChatAtom";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
-
-interface IWindow extends Window {
-  SpeechRecognition: any;
-  webkitSpeechRecognition: any;
-}
 
 export default function ChatInput() {
   const [messages, setMessages] = useAtom(messageHistoryAtom);
@@ -27,65 +22,87 @@ export default function ChatInput() {
   const isPlayingRef = useRef<boolean>(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isAudioContextReady, setIsAudioContextReady] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isProcessingAudio, setIsProcessingAudio] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [transcript, setTranscript] = useState("");
 
-  useEffect(() => {
-    const windowWithSpeech = window as unknown as IWindow;
-    const SpeechRecognition = windowWithSpeech.SpeechRecognition || windowWithSpeech.webkitSpeechRecognition;
+  // Setup MediaRecorder for audio recording
+  const setupRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+      });
 
-    if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'en-US';
-
-      recognitionRef.current.onresult = (event: any) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
         }
-
-        setTranscript(interimTranscript || finalTranscript);
-        if (finalTranscript) setInput(prev => prev + finalTranscript);
       };
 
-      recognitionRef.current.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        setIsListening(false);
+      mediaRecorderRef.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        audioChunksRef.current = [];
+        
+        await convertSpeechToText(audioBlob);
+        
+        // Stop all tracks to release microphone
+        stream.getTracks().forEach(track => track.stop());
       };
 
-      recognitionRef.current.onend = () => setIsListening(false);
+    } catch (error) {
+      console.error('Error setting up recording:', error);
+      alert('Không thể truy cập microphone. Vui lòng kiểm tra quyền truy cập.');
     }
-
-    return () => {
-      if (recognitionRef.current) recognitionRef.current.stop();
-    };
   }, []);
 
-  const toggleListening = useCallback(() => {
-    if (!recognitionRef.current) {
-      alert('Speech recognition is not supported in your browser.');
-      return;
-    }
+  const convertSpeechToText = useCallback(async (audioBlob: Blob) => {
+    setIsProcessingAudio(true);
+    try {
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.webm');
 
-    if (isListening) {
-      recognitionRef.current.stop();
-    } else {
-      recognitionRef.current.start();
-      setTranscript("");
-      inputRef.current?.focus();
+      const response = await fetch('/api/speech-to-text', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      
+      if (result.success && result.text) {
+        setInput(prev => prev + ' ' + result.text);
+        inputRef.current?.focus();
+      } else {
+        console.error('Speech-to-text failed:', result.error);
+        alert('Không thể chuyển đổi giọng nói thành văn bản. Vui lòng thử lại.');
+      }
+    } catch (error) {
+      console.error('Error converting speech to text:', error);
+      alert('Lỗi khi chuyển đổi giọng nói thành văn bản.');
+    } finally {
+      setIsProcessingAudio(false);
     }
-    setIsListening(prev => !prev);
-  }, [isListening]);
+  }, []);
+
+  const toggleRecording = useCallback(async () => {
+    if (isRecording) {
+      // Stop recording
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+      setIsRecording(false);
+    } else {
+      // Start recording
+      await setupRecording();
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.start();
+        setIsRecording(true);
+        inputRef.current?.focus();
+      }
+    }
+  }, [isRecording, setupRecording]);
 
   useEffect(() => {
     const handleUserGesture = async () => {
@@ -161,7 +178,6 @@ export default function ChatInput() {
     const newMessages: CoreMessage[] = [...messages, { content: input, role: "user" }];
     setMessages(newMessages);
     setInput("");
-    setTranscript("");
   
     try {
       const response = await fetch("/api/chat", {
@@ -205,12 +221,20 @@ export default function ChatInput() {
           <div className="flex h-full items-center justify-center px-4">
             <button
               type="button"
-              onClick={toggleListening}
-              disabled={isLoading}
-              aria-label={isListening ? "Stop listening" : "Start listening"}
-              className={`p-1 rounded-full ${isListening ? 'bg-red-100' : 'hover:bg-gray-100'}`}
+              onClick={toggleRecording}
+              disabled={isLoading || isProcessingAudio}
+              aria-label={isRecording ? "Dừng ghi âm" : "Bắt đầu ghi âm"}
+              className={`p-1 rounded-full ${
+                isRecording 
+                  ? 'bg-red-100 animate-pulse' 
+                  : isProcessingAudio 
+                    ? 'bg-blue-100' 
+                    : 'hover:bg-gray-100'
+              }`}
             >
-              {isListening ? (
+              {isProcessingAudio ? (
+                <FaSpinner className="text-blue-500 animate-spin" />
+              ) : isRecording ? (
                 <FaMicrophoneSlash className="text-red-500" />
               ) : (
                 <FaMicrophone className="text-gray-500 hover:text-gray-700" />
@@ -222,11 +246,17 @@ export default function ChatInput() {
               ref={inputRef}
               className="h-full w-full px-2 py-2 text-neutral-800 outline-none"
               type="text"
-              placeholder={isListening ? transcript || "Listening..." : "Enter your message..."}
+              placeholder={
+                isRecording 
+                  ? "Đang ghi âm..." 
+                  : isProcessingAudio 
+                    ? "Đang xử lý âm thanh..." 
+                    : "Nhập tin nhắn hoặc nhấn microphone để ghi âm..."
+              }
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleSubmit(e as any)}
-              disabled={isLoading}
+              disabled={isLoading || isRecording}
               aria-label="Chat input"
             />
           </div>

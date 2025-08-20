@@ -1,4 +1,4 @@
-import type { CoreMessage } from "ai";
+import type { CoreMessage } from "~/types/chat";
 import { atom } from "jotai";
 
 export const messageHistoryAtom = atom<CoreMessage[]>([]);
