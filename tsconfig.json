@@ -35,11 +35,11 @@
     "**/*.tsx",
     "**/*.cjs",
     "**/*.js",
-    ".next/types/**/*.ts",
-    "public/live2dcubismcore.min.js"
+    ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules", 
-    "public/embed.js"
+    "public/embed.js",
+    "public/live2dcubismcore.min.js"
   ]
 }
