@@ -5,7 +5,7 @@ import ChatInput from "~/components/ChatInput";
 import SimpleWatermark from "~/components/SimpleWatermark";
 
 const Bg = memo(() => (
-  <div className="absolute inset-0 z-0 overflow-hidden bg-cover bg-center" style={{backgroundImage:'url(/one.avif)'}}/>
+  <div className="absolute inset-0 z-0 overflow-hidden bg-cover bg-center" style={{backgroundImage:'url(/ptit.png)'}}/>
 ));
 
 
