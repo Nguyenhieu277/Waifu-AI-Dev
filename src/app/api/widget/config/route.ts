@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     position: 'bottom-right',
     showBackground: true,
     character: {
-      name: 'Tú Như',
+      name: 'Lara',
       personality: 'Dịu dàng và như một người mẹ, luôn háo hức trò chuyện và hỗ trợ',
     },
     features: {
