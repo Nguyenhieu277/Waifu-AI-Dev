@@ -6,24 +6,12 @@
  * - Full motion system (11 motion groups with hitbox responses)
  * - Advanced hitbox detection (Head, Body, Face areas)
  * - Double-click special interactions
- * - Keyboard shortcuts for testing (1-3, h, n, s, r)
  * - Drag and zoom with position persistence
  * - Sentiment analysis for chat responses
  * - Mobile touch support with pinch-to-zoom
  * - Automatic idle animations
  * - Mouth animation during speech
  * - Vietnamese language support
- * 
- * Keyboard Controls:
- * - 1,2,3: Greeting motions
- * - h: Heart motion
- * - n: Head nod
- * - s: Head shake
- * - p: Hair stroking (pat)
- * - f: Face interaction
- * - u: Upper body interaction
- * - b: Body interaction
- * - r: Reset to default
  */
 
 import * as PIXI from 'pixi.js';
@@ -115,14 +103,14 @@ const HITBOXES = {
     id: 'HitArea_UpperBody',
     bounds: { x: 0.2, y: 0.55, width: 0.6, height: 0.25 }, // Upper torso area
     motions: [MOTIONS.HITBOX_3], // Upper body motion matches VAY_TAY
-    expressions: [EXPRESSIONS.VAY_TAY_1, EXPRESSIONS.HAPPY], // Wave expression matches motion
+    expressions: [ EXPRESSIONS.HAPPY], // Wave expression matches motion
     description: 'Upper body - shoulder/chest area'
   },
   BODY: {
     id: 'HitArea_Body', 
     bounds: { x: 0.15, y: 0.8, width: 0.7, height: 0.2 }, // Lower body area only
     motions: [MOTIONS.HITBOX_4, MOTIONS.HITBOX_5, MOTIONS.HEART], // Lower body specific motions
-    expressions: [EXPRESSIONS.VAY_TAY_2, EXPRESSIONS.THA_TYM], // Appropriate expressions
+    expressions: [], // Appropriate expressions
     description: 'Lower body - waist/hip area'
   }
 };
@@ -543,13 +531,13 @@ const Model: React.FC = memo(() => {
                   
                 case 'UPPER_BODY':
                   console.log('👋 Upper body touch - playful interaction!');
-                  setExpression(EXPRESSIONS.VAY_TAY_1); // Wave expression matches motion
+                  setExpression(EXPRESSIONS.HAPPY); // Wave expression matches motion
                   playRandomMotionFromGroup(MOTION_GROUPS.UPPER_BODY_TOUCH);
                   break;
                   
                 case 'BODY':
                   console.log('💖 Body touch - special interaction!');
-                  setExpression(EXPRESSIONS.VAY_TAY_2);
+                  setExpression(EXPRESSIONS.ANGRY);
                   playRandomMotionFromGroup(MOTION_GROUPS.BODY_TOUCH);
                   setTimeout(() => setExpression(EXPRESSIONS.THA_TYM), 1000);
                   break;
@@ -567,70 +555,6 @@ const Model: React.FC = memo(() => {
           lastTapTime = currentTime;
         };
 
-        // Keyboard interaction handler for accessibility and debug
-        const handleKeyPress = (event: KeyboardEvent) => {
-          if (!modelRef.current) return;
-          
-          switch (event.key.toLowerCase()) {
-            case '1':
-              playMotion(MOTIONS.CHECKIN_1);
-              setExpression(EXPRESSIONS.HAPPY);
-              break;
-            case '2':
-              playMotion(MOTIONS.CHECKIN_2);
-              setExpression(EXPRESSIONS.EXCITED);
-              break;
-            case '3':
-              playMotion(MOTIONS.CHECKIN_3);
-              setExpression(EXPRESSIONS.VAY_TAY_1);
-              break;
-            case 'h':
-              playMotion(MOTIONS.HEART);
-              setExpression(EXPRESSIONS.THA_TYM);
-              break;
-            case 'n':
-              playMotion(MOTIONS.HEAD_NOD);
-              setExpression(EXPRESSIONS.HAPPY);
-              break;
-            case 's':
-              playMotion(MOTIONS.HEAD_SHAKE);
-              setExpression(EXPRESSIONS.CHONG_NANH);
-              break;
-            case 'p':
-              // Hair pat/stroking
-              console.log('🥰 Hair stroking via keyboard!');
-              playRandomMotionFromGroup(MOTION_GROUPS.HAIR_STROKING);
-              setExpression(EXPRESSIONS.BLUSH);
-              setTimeout(() => setExpression(EXPRESSIONS.THA_TYM), 1500);
-              break;
-            case 'f':
-              // Face interaction
-              console.log('😊 Face interaction via keyboard!');
-              playRandomMotionFromGroup(MOTION_GROUPS.FACE_TOUCH);
-              setExpression(EXPRESSIONS.CHONG_NANH);
-              break;
-            case 'u':
-              // Upper body interaction
-              console.log('👋 Upper body interaction via keyboard!');
-              playRandomMotionFromGroup(MOTION_GROUPS.UPPER_BODY_TOUCH);
-              setExpression(EXPRESSIONS.VAY_TAY_1);
-              break;
-            case 'b':
-              // Body interaction
-              console.log('💖 Body interaction via keyboard!');
-              playRandomMotionFromGroup(MOTION_GROUPS.BODY_TOUCH);
-              setExpression(EXPRESSIONS.VAY_TAY_2);
-              setTimeout(() => setExpression(EXPRESSIONS.THA_TYM), 1000);
-              break;
-            case 'r':
-              // Reset to default
-              setExpression(EXPRESSIONS.DEFAULT);
-              playRandomIdleMotion();
-              break;
-            default:
-              break;
-          }
-        };
 
         // Pinch to zoom for mobile
         let lastPinchDistance = 0;
@@ -681,7 +605,6 @@ const Model: React.FC = memo(() => {
         }
         window.addEventListener('mousemove', handleMouseMove, { passive: true });
         window.addEventListener('mouseup', handleMouseUp);
-        window.addEventListener('keydown', handleKeyPress);
         
         // Touch events - only on canvas
         if (canvasRef.current) {
@@ -712,7 +635,6 @@ const Model: React.FC = memo(() => {
           }
           window.removeEventListener('mousemove', handleMouseMove);
           window.removeEventListener('mouseup', handleMouseUp);
-          window.removeEventListener('keydown', handleKeyPress);
           window.removeEventListener('touchmove', handleTouchMove);
           window.removeEventListener('touchend', handleTouchEnd);
           window.removeEventListener('resize', handleResize);
