@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import ChatInput from "~/components/ChatInput";
 import SimpleWatermark from "~/components/SimpleWatermark";
 import ClothingActionBar from "~/components/ClothingActionBar";
+import MusicBar from "~/components/MusicBar";
 
 const Bg = memo(() => (
   <div className="absolute inset-0 z-0 overflow-hidden bg-cover bg-center" style={{backgroundImage:'url(/ptit.png)'}}/>
@@ -50,6 +51,12 @@ export default function Page() {
         </div>
         {ready && <ClothingActionBar onToggleClothing={handleClothingToggle} />}
       </div>
+      
+      {/* Mini Music Player - Top left corner */}
+      <MusicBar 
+        showPlaylist={true}
+        autoPlay={false}
+      />
     </main>
   );
 }
