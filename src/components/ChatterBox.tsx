@@ -51,7 +51,7 @@ export default function ChatterBox() {
   }
 
   return (
-    <div className="absolute top-7 flex flex-col-reverse items-center">
+    <div className="absolute top-7 flex flex-col-reverse items-center z-40">
       {isLoading ? (
         <Spinner />
       ) : (

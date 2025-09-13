@@ -3,6 +3,7 @@ import { useEffect, useState, memo } from 'react';
 import dynamic from 'next/dynamic';
 import ChatInput from "~/components/ChatInput";
 import SimpleWatermark from "~/components/SimpleWatermark";
+import ClothingActionBar from "~/components/ClothingActionBar";
 
 const Bg = memo(() => (
   <div className="absolute inset-0 z-0 overflow-hidden bg-cover bg-center" style={{backgroundImage:'url(/ptit.png)'}}/>
@@ -34,6 +35,10 @@ export default function Page() {
     };
   }, []);
 
+  const handleClothingToggle = (clothingType: 'glasses' | 'jacket', isEnabled: boolean) => {
+    console.log(`Clothing toggle: ${clothingType} = ${isEnabled}`);
+  };
+
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden">
       <Bg/>
@@ -41,8 +46,9 @@ export default function Page() {
       <div className="relative z-10 flex flex-col items-center justify-center w-full h-full slideUp">
         <ChatInput/>
         <div className="h-screen flex justify-center items-center w-full">
-          {!ready ? <Dots/> : (<><Box/><Model/></>)}
+          {!ready ? <Dots/> : (<><Box/><Model onClothingToggle={handleClothingToggle}/></>)}
         </div>
+        {ready && <ClothingActionBar onToggleClothing={handleClothingToggle} />}
       </div>
     </main>
   );

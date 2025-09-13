@@ -3,6 +3,7 @@ import { useEffect, useState, memo } from 'react';
 import dynamic from 'next/dynamic';
 import ChatInput from "./ChatInput";
 import SimpleWatermark from "./SimpleWatermark";
+import ClothingActionBar from "./ClothingActionBar";
 
 const Box = dynamic(() => import("./ChatterBox"), {ssr: false});
 const Model = dynamic(() => import("./Model"), {ssr: false});
@@ -17,6 +18,7 @@ interface WidgetProps {
   theme?: 'default' | 'dark' | 'minimal';
   size?: 'small' | 'medium' | 'large';
   showBackground?: boolean;
+  showClothingBar?: boolean;
   className?: string;
 }
 
@@ -24,6 +26,7 @@ const Widget: React.FC<WidgetProps> = memo(({
   theme = 'default',
   size = 'medium',
   showBackground = true,
+  showClothingBar = true,
   className = ''
 }) => {
   const [ready, setReady] = useState(false);
@@ -41,6 +44,10 @@ const Widget: React.FC<WidgetProps> = memo(({
       }
     };
   }, []);
+
+  const handleClothingToggle = (clothingType: 'glasses' | 'jacket', isEnabled: boolean) => {
+    console.log(`Widget clothing toggle: ${clothingType} = ${isEnabled}`);
+  };
 
   // Size classes
   const sizeClasses = {
@@ -77,8 +84,14 @@ const Widget: React.FC<WidgetProps> = memo(({
       <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
         <ChatInput/>
         <div className="flex-1 flex justify-center items-center w-full">
-          {!ready ? <Dots/> : (<><Box/><Model/></>)}
+          {!ready ? <Dots/> : (<><Box/><Model onClothingToggle={handleClothingToggle}/></>)}
         </div>
+        {ready && showClothingBar && (
+          <ClothingActionBar 
+            onToggleClothing={handleClothingToggle}
+            className="top-2 right-2 transform scale-75"
+          />
+        )}
       </div>
     </div>
   );

@@ -39,6 +39,7 @@ const STORAGE_KEY = 'ptit-ami-model-transform';
 // Interaction settings
 const DOUBLE_CLICK_THRESHOLD = 300; // milliseconds
 const SPECIAL_INTERACTION_COOLDOWN = 2000; // milliseconds between special interactions
+const CLICK_RATE_LIMIT = 3000; // milliseconds - 3 seconds between clicks
 
 // Available expressions for PTIT_Ami model - Complete list from model3.json
 const EXPRESSIONS = {
@@ -133,7 +134,11 @@ const MOTION_GROUPS = {
 
 const preloadModel = () => Live2DModel.from('/model/PTIT_Ami/ptit_sdk.model3.json');
 
-const Model: React.FC = memo(() => {
+interface ModelProps {
+  onClothingToggle?: (clothingType: 'glasses' | 'jacket', isEnabled: boolean) => void;
+}
+
+const Model: React.FC<ModelProps> = memo(({ onClothingToggle }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastMessage = useAtomValue(lastMessageAtom);
   const modelRef = useRef<any>(null);
@@ -141,6 +146,17 @@ const Model: React.FC = memo(() => {
   const mouseMoveRef = useRef({ last: 0, target: { x: 0, y: 0 }, current: { x: 0, y: 0 } });
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
   const expressionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Click rate limiting
+  const lastClickTimeRef = useRef<number>(0);
+  const [notification, setNotification] = React.useState<string | null>(null);
+  const notificationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Clothing state management
+  const [clothingState, setClothingState] = React.useState({
+    glasses: false,
+    jacket: true // Default state - có áo khoác
+  });
   
   // Drag and zoom states
   const dragStateRef = useRef({
@@ -299,8 +315,149 @@ const Model: React.FC = memo(() => {
     return null;
   }, [setExpression]);
 
+  // Smooth animation state for clothing transitions - faster speeds
+  const clothingAnimationRef = useRef({
+    glasses: { current: 0, target: 0, speed: 0.25 }, // Increased from 0.15
+    jacket: { current: 0, target: 0, speed: 0.22 }   // Increased from 0.12
+  });
+
+  // Apply current clothing state to model using smooth parameter control
+  const applyClothingState = useCallback(() => {
+    const model = modelRef.current;
+    if (model && model.internalModel && model.internalModel.coreModel) {
+      // Update target values based on clothing state
+      clothingAnimationRef.current.glasses.target = clothingState.glasses ? 10 : 0;
+      clothingAnimationRef.current.jacket.target = clothingState.jacket ? 0 : 10; // Inverted logic
+      
+      console.log(`👓 Glasses: ${clothingState.glasses ? 'ON' : 'OFF'}, 🧥 Jacket: ${clothingState.jacket ? 'ON' : 'OFF'}`);
+    }
+  }, [clothingState]);
+
+  // Smooth clothing animation update function - ALWAYS maintains clothing state
+  const updateClothingAnimation = useCallback((deltaTime: number) => {
+    const model = modelRef.current;
+    if (model && model.internalModel && model.internalModel.coreModel) {
+      const anim = clothingAnimationRef.current;
+      
+      // Smooth transition for glasses with higher priority
+      const glassesDiff = anim.glasses.target - anim.glasses.current;
+      if (Math.abs(glassesDiff) > 0.05) { // Lower threshold for smoother animation
+        anim.glasses.current += glassesDiff * anim.glasses.speed * deltaTime * 60;
+      } else {
+        anim.glasses.current = anim.glasses.target;
+      }
+      // ALWAYS set glasses parameter to maintain state
+      model.internalModel.coreModel.setParameterValueById('Param_Glasses', anim.glasses.current);
+      
+      // Smooth transition for jacket with higher priority
+      const jacketDiff = anim.jacket.target - anim.jacket.current;
+      if (Math.abs(jacketDiff) > 0.05) { // Lower threshold for smoother animation
+        anim.jacket.current += jacketDiff * anim.jacket.speed * deltaTime * 60;
+      } else {
+        anim.jacket.current = anim.jacket.target;
+      }
+      // ALWAYS set jacket parameter to maintain state
+      model.internalModel.coreModel.setParameterValueById('Param_Jacket', anim.jacket.current);
+    }
+  }, []);
+
+  // Clothing toggle functions with smooth visual feedback - NO expressions that reset
+  const toggleGlasses = useCallback((isEnabled: boolean) => {
+    setClothingState(prev => ({ ...prev, glasses: isEnabled }));
+    console.log(`👓 Toggling Glasses to: ${isEnabled ? 'ON' : 'OFF'}`);
+    
+    // Only add subtle motion feedback, NO expressions that cause resets
+    const model = modelRef.current;
+    if (model && model.internalModel) {
+      // Add a gentle head nod for acknowledgment without expression change
+      setTimeout(() => {
+        playMotion(MOTIONS.HEAD_NOD);
+      }, 200);
+    }
+    
+    // Call parent callback if provided
+    if (onClothingToggle) {
+      onClothingToggle('glasses', isEnabled);
+    }
+  }, [onClothingToggle, playMotion]);
+
+  const toggleJacket = useCallback((isEnabled: boolean) => {
+    setClothingState(prev => ({ ...prev, jacket: isEnabled }));
+    console.log(`🧥 Toggling Jacket to: ${isEnabled ? 'ON' : 'OFF'}`);
+    
+    // Only add subtle motion feedback, NO expressions that cause resets
+    const model = modelRef.current;
+    if (model && model.internalModel) {
+      // Add a gentle motion for acknowledgment without expression change
+      setTimeout(() => {
+        playRandomMotionFromGroup([MOTIONS.CHECKIN_2, MOTIONS.CHECKIN_3]);
+      }, 250);
+    }
+    
+    // Call parent callback if provided
+    if (onClothingToggle) {
+      onClothingToggle('jacket', isEnabled);
+    }
+  }, [onClothingToggle, playRandomMotionFromGroup]);
+
+  // Apply clothing state whenever it changes
+  React.useEffect(() => {
+    applyClothingState();
+  }, [clothingState, applyClothingState]);
+
+  // Expose clothing toggle functions globally for ClothingActionBar
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).ptitModelControls = {
+        toggleGlasses,
+        toggleJacket
+      };
+    }
+    
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete (window as any).ptitModelControls;
+      }
+    };
+  }, [toggleGlasses, toggleJacket]);
+
+  // Show notification function
+  const showNotification = useCallback((message: string, duration: number = 2000) => {
+    // Clear existing timer
+    if (notificationTimerRef.current) {
+      clearTimeout(notificationTimerRef.current);
+    }
+    
+    setNotification(message);
+    
+    // Auto hide notification after duration
+    notificationTimerRef.current = setTimeout(() => {
+      setNotification(null);
+    }, duration);
+  }, []);
+
+  // Check if click is allowed (rate limiting)
+  const isClickAllowed = useCallback(() => {
+    const currentTime = Date.now();
+    const timeSinceLastClick = currentTime - lastClickTimeRef.current;
+    
+    if (timeSinceLastClick < CLICK_RATE_LIMIT) {
+      const remainingTime = Math.ceil((CLICK_RATE_LIMIT - timeSinceLastClick) / 1000);
+      showNotification(`Bạn thao tác quá nhanh! Vui lòng chờ ${remainingTime} giây nữa.`);
+      return false;
+    }
+    
+    lastClickTimeRef.current = currentTime;
+    return true;
+  }, [showNotification]);
+
   // Handle hitbox interactions with appropriate motions and expressions
   const handleHitboxInteraction = useCallback((hitboxData: { area: string, hitbox: typeof HITBOXES[keyof typeof HITBOXES] }) => {
+    // Check rate limiting first
+    if (!isClickAllowed()) {
+      return { motion: null, expression: null };
+    }
+    
     const { area, hitbox } = hitboxData;
     
     // Play appropriate motion for the hitbox area
@@ -312,7 +469,7 @@ const Model: React.FC = memo(() => {
     console.log(`Hitbox interaction: ${area}, Motion: ${playedMotion || 'none'}, Expression: ${playedExpression || 'none'}`);
     
     return { motion: playedMotion, expression: playedExpression };
-  }, [playRandomMotionFromGroup, playRandomExpressionFromGroup]);
+  }, [playRandomMotionFromGroup, playRandomExpressionFromGroup, isClickAllowed]);
 
   const analyzeMessageSentiment = useCallback((message: string): string => {
     const happyWords = ['happy', 'good', 'great', 'awesome', 'wonderful', 'excellent', 'vui', 'tốt', 'tuyệt', 'hay', 'giỏi', 'đẹp'];
@@ -346,7 +503,8 @@ const Model: React.FC = memo(() => {
 
   const renderLoop = useCallback((deltaTime: number) => {
     animateModel(deltaTime);
-  }, [animateModel]);
+    updateClothingAnimation(deltaTime);
+  }, [animateModel, updateClothingAnimation]);
 
   useEffect(() => {
     (async () => {
@@ -367,6 +525,14 @@ const Model: React.FC = memo(() => {
 
         // Set initial expression
         setExpression(EXPRESSIONS.DEFAULT);
+        
+        // Initialize clothing animation state and apply initial clothing state
+        setTimeout(() => {
+          // Initialize animation values to match default state
+          clothingAnimationRef.current.glasses.current = clothingState.glasses ? 10 : 0;
+          clothingAnimationRef.current.jacket.current = clothingState.jacket ? 0 : 10;
+          applyClothingState();
+        }, 500); // Small delay to ensure model is fully loaded
 
         // Start idle motion timer
         const startIdleTimer = () => {
@@ -438,9 +604,11 @@ const Model: React.FC = memo(() => {
               if (hitboxData) {
                 handleHitboxInteraction(hitboxData);
               } else {
-                // Fallback to general interaction if no specific hitbox
-                playRandomMotionFromGroup(MOTION_GROUPS.REACTIONS);
-                setExpression(EXPRESSIONS.HAPPY);
+                // Fallback to general interaction if no specific hitbox - also check rate limiting
+                if (isClickAllowed()) {
+                  playRandomMotionFromGroup(MOTION_GROUPS.REACTIONS);
+                  setExpression(EXPRESSIONS.HAPPY);
+                }
               }
             }
           }
@@ -501,6 +669,12 @@ const Model: React.FC = memo(() => {
           const timeDiff = currentTime - lastTapTime;
           
           if (timeDiff < DOUBLE_CLICK_THRESHOLD && (currentTime - lastSpecialInteraction) > SPECIAL_INTERACTION_COOLDOWN) {
+            // Check rate limiting for double-click interactions too
+            if (!isClickAllowed()) {
+              lastTapTime = currentTime;
+              return;
+            }
+            
             const rect = appRef.current?.view.getBoundingClientRect();
             if (rect && modelRef.current) {
               const { clientX, clientY } = event;
@@ -646,6 +820,9 @@ const Model: React.FC = memo(() => {
           if (expressionTimerRef.current) {
             clearTimeout(expressionTimerRef.current);
           }
+          if (notificationTimerRef.current) {
+            clearTimeout(notificationTimerRef.current);
+          }
           
           app.ticker.remove(renderLoop);
           app.destroy(true, { children: true, texture: true, baseTexture: true });
@@ -654,7 +831,7 @@ const Model: React.FC = memo(() => {
         console.error('Error setting up Pixi.js application:', error);
       }
     })();
-  }, [renderLoop, updateModelSize, updateModelTransform, setExpression, playRandomIdleMotion, playMotion, loadModelTransform, detectHitbox, handleHitboxInteraction, playRandomMotionFromGroup, playRandomExpressionFromGroup]);
+  }, [renderLoop, updateModelSize, updateModelTransform, setExpression, playRandomIdleMotion, playMotion, loadModelTransform, detectHitbox, handleHitboxInteraction, playRandomMotionFromGroup, playRandomExpressionFromGroup, applyClothingState]);
 
   useEffect(() => {
     if (lastMessage && modelRef.current) {
@@ -708,7 +885,44 @@ const Model: React.FC = memo(() => {
     }
   }, [lastMessage, analyzeMessageSentiment, setExpression, playMotion]);
 
-  return <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />;
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%', zIndex: 1 }}>
+      <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
+      
+      {/* Notification overlay */}
+      {notification && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: 'rgba(255, 0, 0, 0.9)',
+            color: 'white',
+            padding: '12px 24px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+            zIndex: 1000,
+            animation: 'fadeInOut 0.3s ease-in-out',
+            textAlign: 'center',
+            maxWidth: '300px',
+            wordWrap: 'break-word'
+          }}
+        >
+          {notification}
+        </div>
+      )}
+      
+      <style jsx>{`
+        @keyframes fadeInOut {
+          0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+          100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
 });
 
 export default Model;

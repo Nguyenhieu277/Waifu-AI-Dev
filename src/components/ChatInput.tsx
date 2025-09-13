@@ -215,7 +215,7 @@ export default function ChatInput() {
   }, [messages, input, setMessages, setLastMessage, setIsLoading, synthesizeSentence, playNextSentence, isAudioContextReady]);
 
   return (
-    <div className="absolute bottom-10 h-10 w-full max-w-lg px-5" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+    <div className="absolute bottom-10 h-10 w-full max-w-lg px-5 z-50" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
       <form onSubmit={handleSubmit}>
         <div className={`flex w-full items-center overflow-hidden rounded-[12px] bg-white shadow transition-all duration-300 ${isHovered || input ? 'border-[rgb(196,191,228)] shadow-lg scale-105' : 'border-transparent'} border-2`}>
           <div className="flex h-full items-center justify-center px-4">
